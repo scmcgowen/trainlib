@@ -56,6 +56,9 @@ local condition_metatable = {
 local instruction_metatable = {
     __name = "trainlib.instruction"
 }
+local item_metatable = {
+    __name = "trainlib.item"
+}
 
 function trainlib.schedule(cyclic)
     expect(1,cyclic,"boolean","nil")
@@ -81,7 +84,35 @@ local function condition(condition_type,data)
     return setmetatable({id=condition_type,data=data},condition_metatable)
 end
 
+local itemFactoryMetatable = {
+    __call = function(_,item,count)
+        expect(1,item,"string","table")
+        expect(2,count,"number","nil")
+        if type(item) == "string" then
+            return trainlib.item.from_id(item,count)
+        else
+            return trainlib.item.from_inventory(item)
+        end
+    end
+}
+
+trainlib.item = setmetatable({},itemFactoryMetatable)
+function trainlib.item.from_inventory(item)
+    return setmetatable({id=item.name,count=item.count},item_metatable)
+end
+function trainlib.item.from_id(id,count)
+    return setmetatable({id=id,count=count},item_metatable)
+end
+
+
 trainlib.conditions = {}
+
+
+function trainlib.conditions.custom(condition_type,data)
+    expect(1,condition_type,"string")
+    expect(1,data,"table")
+    return condition(instruction_type,data)
+end
 
 function trainlib.conditions.delay(value,time_unit)
     expect(1,value,"number")
@@ -159,6 +190,11 @@ local function instruction(instruction_type,data)
     return setmetatable({id=instruction_type,data=data},instruction_metatable)
 end
 
+function trainlib.instructions.custom(instruction_type,data)
+    expect(1,instruction_type,"string")
+    expect(1,data,"table")
+    return instruction(instruction_type,data)
+end
 function trainlib.instructions.destination(destination)
     expect(1,destination,"string")
     return instruction("create:destination",{text=destination})
@@ -172,5 +208,14 @@ end
 function trainlib.instructions.throttle(value)
     expect(1,value,"number")
     return instruction("create:throttle",{value=value})
+end
+
+function trainlib.instructions.retrieve_package(filter)
+    filter = filter or ""
+    expect(1,filter,"string")
+    return instruction("create:package_retrieval",{text=filter})
+end
+function trainlib.instructions.deliver_package()
+    return instruction("create:package_delivery",{})
 end
 return trainlib
